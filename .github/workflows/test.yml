@@ -1,3 +1,4 @@
+
 name: Website Deployment
 on:
   push:
@@ -13,14 +14,12 @@ jobs:
         id: cache
         uses: actions/cache@v3
         with:
-          path: node_modules
+          path: ~/.npm
           key: deps-node-modules-${{ hashFiles('**/package-lock.json') }}
       - name: Install dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
         run: npm ci
       - name: Lint code
         run: npm run lint
-
   test:
     runs-on: ubuntu-latest
     steps:
@@ -30,21 +29,19 @@ jobs:
         id: cache
         uses: actions/cache@v3
         with:
-          path: node_modules
+          path: ~/.npm
           key: deps-node-modules-${{ hashFiles('**/package-lock.json') }}
       - name: Install dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
         run: npm ci
       - name: Test code
-        id: run-tests
+        id: test-code
         run: npm run test
       - name: Upload test report
-        if: failure() && steps.run-tests.outcome == 'failure'
+        if: failure() && steps.test-code.outcome == 'failure'
         uses: actions/upload-artifact@v3
         with:
           name: test-report
           path: test.json
-
   build:
     needs: test
     runs-on: ubuntu-latest
@@ -55,10 +52,9 @@ jobs:
         id: cache
         uses: actions/cache@v3
         with:
-          path: node_modules
+          path: ~/.npm
           key: deps-node-modules-${{ hashFiles('**/package-lock.json') }}
       - name: Install dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
         run: npm ci
       - name: Build website
         id: build-website
@@ -68,7 +64,6 @@ jobs:
         with:
           name: dist-files
           path: dist
-
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -81,13 +76,3 @@ jobs:
         run: ls
       - name: Deploy
         run: echo "Deploying..."
-  
-  report:
-    needs: [lint,deploy]
-    if: failure() 
-    runs-on: ubuntu-latest
-    steps:
-      - name: output information
-        run: |
-          echo "Something went wrong"
-          echo "${{ toJson(github) }}"
